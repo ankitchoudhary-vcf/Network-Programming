@@ -1,59 +1,60 @@
-// Server side C/C++ program to demonstrate Socket programming
-#include <unistd.h>
+// Server side implementation of UDP client-server model
 #include <stdio.h>
-#include <sys/socket.h>
 #include <stdlib.h>
-#include <netinet/in.h>
+#include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
 #define PORT 8000
-int main(int argc, char const *argv[])
+#define MAXLINE 1024
+
+// Driver code
+int main()
 {
-	int server_fd, new_socket, valread;
-	struct sockaddr_in address;
-	int opt = 1;
-	int addrlen = sizeof(address);
-	char buffer[1024] = {0};
+	int sockfd;
+	char buffer[MAXLINE];
 	char *hello = "Hello from server";
-	
+	struct sockaddr_in servaddr, cliaddr;
+
 	// Creating socket file descriptor
-	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+	if ((sockfd = socket(PF_INET, SOCK_DGRAM, 0)) < 0)
 	{
-		perror("socket failed");
+		perror("socket creation failed");
 		exit(EXIT_FAILURE);
 	}
-	
-	// Forcefully attaching socket to the port 8080
-	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-												&opt, sizeof(opt)))
-	{
-		perror("setsockopt");
-		exit(EXIT_FAILURE);
-	}
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = INADDR_ANY;
-	address.sin_port = htons( PORT );
-	
-	// Forcefully attaching socket to the port 8080
-	if (bind(server_fd, (struct sockaddr *)&address,
-								sizeof(address))<0)
+
+	memset(&servaddr, 0, sizeof(servaddr));
+	memset(&cliaddr, 0, sizeof(cliaddr));
+
+	// Filling server information
+	servaddr.sin_family = AF_INET; // IPv4
+	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	servaddr.sin_port = htons(PORT);
+
+	// Bind the socket with the server address
+	if (bind(sockfd, (const struct sockaddr *)&servaddr,
+			 sizeof(servaddr)) < 0)
 	{
 		perror("bind failed");
 		exit(EXIT_FAILURE);
 	}
-	if (listen(server_fd, 3) < 0)
-	{
-		perror("listen");
-		exit(EXIT_FAILURE);
-	}
-	if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-					(socklen_t*)&addrlen))<0)
-	{
-		perror("accept");
-		exit(EXIT_FAILURE);
-	}
-	valread = read( new_socket , buffer, 1024);
-	printf("%s\n",buffer );
-	send(new_socket , hello , strlen(hello) , 0 );
-	printf("Hello message sent\n");
+
+	int len, n;
+
+	len = sizeof(cliaddr); //len is value/resuslt
+
+	n = recvfrom(sockfd, (char *)buffer, MAXLINE,
+				 0, (struct sockaddr *)&cliaddr,
+				 &len);
+	buffer[n] = '\0';
+	printf("Client : %s\n", buffer);
+	sendto(sockfd, (const char *)hello, strlen(hello),
+		   0, (const struct sockaddr *)&cliaddr,
+		   len);
+	printf("Hello message sent.\n");
+
 	return 0;
 }
